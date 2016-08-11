@@ -129,4 +129,54 @@ if argEmu.emulation and argOffset.emulationAtAddress :
 		if c:
 			cur.close()
 			c.close()
+if argSymb.symbexec:
+	try:
+		c = lite.connect('deko.db')
+		cur = c.cursor()
+		cur.execute("SELECT DUMP FROM disas where NAME='"+argSymb.symbexec+"'")
+		dataa = cur.fetchone()
+		# Create a bin_stream from a Python string
+		bs = dataa[0].decode("hex")
+
+		# Get a Miasm x86 32bit machine
+		machine = Machine("x86_32")
+		# Retrieve the disassemble and IR analysis
+		dis_engine, ira = machine.dis_engine, machine.ira
+
+		# link the disasm engine to the bin_stream
+		mdis = dis_engine(bs)
+
+		# Stop disassembler after the XOR
+		mdis.dont_dis = [0x1C]
+		# Disassemble one basic block
+		block = mdis.dis_bloc(0)
+
+		# instanciate an IR analysis
+		ir_arch = ira(mdis.symbol_pool)
+		# Translate asm basic block to an IR basic block
+		ir_arch.add_bloc(block)
+
+		# Store IR graph
+		open('ir_graph.dot', 'w').write(ir_arch.graph.dot())
+
+		# Initiate the symbolic execution engine
+		# regs_init associates EAX to EAX_init and to on
+		sb = symbexec(ir_arch, machine.mn.regs.regs_init)
+		# sb.dump_id()
+		# Start execution at address 0
+		# IRDst represents the label of the next IR basic block to execute
+		irdst = sb.emul_ir_blocs(ir_arch, 0,step=True)
+		print 'ECX =', sb.symbols[machine.mn.regs.ECX]
+		print 'ESP =', sb.symbols[machine.mn.regs.ESP]
+		print 'EAX =', sb.symbols[machine.mn.regs.EAX]
+	except lite.Error, e:
+		if c:
+			c.rollback()
+			print "Error %s:" % e.args[0]
+			sys.exit(1)
+	finally:
+		if c:
+			cur.close()
+			c.close()
+
 		
