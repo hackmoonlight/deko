@@ -45,4 +45,24 @@ if argFile.binaryfile:
 		elif (argdAction.action=="dump"):
 			print('[+] FunctionDump '+str(i)+":  "+function['name']+ " = " +(r2.cmd("p8" +" "+ str(function["size"])+ " @ " + function["name"]) ))
 		i += 1
+		try:
+			con = lite.connect('deko.db')
+			c = con.cursor()
+			c.execute(" CREATE TABLE IF NOT EXISTS disas(NAME varchar(100) ,STADDR hex ,SIZE INTEGER, DUMP varchar(10000) )")
+			sql = "INSERT INTO disas VALUES ('{name}','{addr}','{size}', '{dump}')".format(
+				name=function['name'],
+				addr=hex(function['offset']),
+				size=hex(function["size"]),
+				dump=r2.cmd("p8" +" "+ str(function["size"])+ " @ " + function["name"] ))
+			c.execute(sql)
+			con.commit()
+		except lite.Error, e:
+			if con:
+				con.rollback()
+				print "Error %s:" % e.args[0]
+				sys.exit(1)
+		finally:
+			if con:
+				c.close()
+				con.close()
 		
