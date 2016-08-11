@@ -65,4 +65,29 @@ if argFile.binaryfile:
 			if con:
 				c.close()
 				con.close()
+try:
+	c = lite.connect('deko.db')
+	cur = c.cursor()
+	if argDump.dump :
+		cur.execute("SELECT DUMP FROM disas where NAME='"+argDump.dump+"'")
+		dataa = cur.fetchone()
+		print "dump : %s" %(dataa)
+	elif argSize.size:
+		cur.execute("SELECT SIZE FROM disas where NAME='"+argSize.size+"'")
+		dataa = cur.fetchone()
+		print "size : %s" %(dataa)
+	elif argAdd.address:
+		cur.execute("SELECT STADDR FROM disas where NAME='"+argAdd.address+"'")
+		dataa = cur.fetchone()
+		print "address : %s" %(dataa)
+	c.commit()
+except lite.Error, e:
+	if c:
+		c.rollback()
+		print "Error %s:" % e.args[0]
+		sys.exit(1)
+finally:
+	if c:
+		cur.close()
+		c.close()
 		
