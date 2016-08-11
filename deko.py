@@ -90,4 +90,43 @@ finally:
 	if c:
 		cur.close()
 		c.close()
+if argEmu.emulation and argOffset.emulationAtAddress :
+	try:
+		c = lite.connect('deko.db')
+		cur = c.cursor()
+		cur.execute("SELECT DUMP FROM disas where NAME='"+argEmu.emulation+"'")
+		dataa = cur.fetchone()
+		data = dataa[0].decode("hex")
+		print data
+		# Init jitter
+		myjit = Machine("x86_32").jitter(jit_type="gcc")
+		myjit.init_stack()
+
+		run_addr = argOffset.emulationAtAddress
+		myjit.vm.add_memory_page(run_addr, PAGE_READ | PAGE_WRITE, data)
+		myjit.jit.log_newbloc = True
+
+
+		# Sentinelle called on terminate
+		def code_sentinelle(jitter):
+			jitter.run = False
+			jitter.pc = 0
+			return True
+		myjit.push_uint32_t(0x1337beef)
+		myjit.add_breakpoint(0x1337beef, code_sentinelle)
+		myjit.init_run(run_addr)
+		#myjit.continue_run()
+		print myjit.cpu.dump_gpregs()
+		eax = ExprId("RAX", 64)[:32]
+		imm0, imm4, imm4_64 = ExprInt32(0), ExprInt32(4), ExprInt64(4)
+		memdata = ExprMem(ExprInt32(run_addr), len(data) * 8)
+	except lite.Error, e:
+		if c:
+			c.rollback()
+			print "Error %s:" % e.args[0]
+			sys.exit(1)
+	finally:
+		if c:
+			cur.close()
+			c.close()
 		
