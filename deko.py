@@ -10,6 +10,11 @@ from miasm2.expression.expression import ExprId, ExprInt32, ExprInt64, ExprAff, 
 from miasm2.analysis.machine import Machine
 from miasm2.core.bin_stream import bin_stream_str
 from miasm2.ir.symbexec import symbexec
+import unittest
+import sys
+import string
+import random
+from fcatalog_client.db_endpoint import TCPFrameClient,DBEndpoint
 parser = argparse.ArgumentParser(description='DECOMPOSITION AND BINARY ANALYSIS')
 parser.add_argument('-f', '--action',help='CHOSE THE ACTION TO EXECUTE , YOU CAN CHOSE:  [name] TO SHOW THE NAME OF FUNCTIONS, [addr] TO SHOW THE FUNCTION ADDRESS ,[size] TO SHOW FUNCTIONS SIZE [dump] TO HEXDUMP THE CONTENT OF EACH FUNCTION   ')
 parser.add_argument( '-b','--binaryfile',help='ENTER THE BINARY FILE TO BEGIN ANALYSIS')
@@ -20,6 +25,8 @@ parser.add_argument('-a', '--address',help='ADDRESS OF SPECIFIC FUNCTION ')
 parser.add_argument('-e', '--emulation',help='EMULATE THE SHELLCODE OF THE FUNCTION')
 parser.add_argument('-o', '--emulationAtAddress',type= any ,help='CHOSE THE ADDRESS WHERE YOU WANT TO EMULATE ')
 parser.add_argument('-se', '--symbexec',help='SYMBOLICALLY EXECUTE THE SHELLCODE OF THE FUNCTION')
+parser.add_argument('-ip', '--addressIp',help='ip of the server ')
+parser.add_argument('-p', '--port',help='port of the server ')
 argdAction = parser.parse_args()
 argDump=parser.parse_args()
 argSize=parser.parse_args()
@@ -28,12 +35,13 @@ argEmu=parser.parse_args()
 argOffset=parser.parse_args()
 argSymb=parser.parse_args()
 argFile=parser.parse_args()
+argPort=parser.parse_args()
+argIp=parser.parse_args()
 if argFile.binaryfile:
 	print str(argFile.binaryfile)
  	r2 = r2pipe.open(str(argFile.binaryfile))
 	r2.cmdj("aaa")
 	function_list = r2.cmdj("aflj") # Analysis Function List Json
-
 	i=0
 	for function in function_list:
 		if (argdAction.action=="addr") :
@@ -178,5 +186,92 @@ if argSymb.symbexec:
 		if c:
 			cur.close()
 			c.close()
+if argIp.addressIp and argPort.port :
+	# Length of random part of db name:
+	RAND_PART_LENGTH = 20
 
-		
+	# Amount of hashes used for the catalog1 signature.
+	NUM_HASHES = 16
+
+	# Address of remote server:
+	remote = None
+
+	def live_test_client():
+		"""
+		Test the client against a remote server of address:port remote.
+		"""
+		# See
+		# http://stackoverflow.com/questions/19087189/python-unittest-testcase-object-has-no-attribute-runtest
+		# For more info.
+
+		# suite = unittest.TestSuite()
+		# Instantiate all tests and insert then into suite:
+		tsuites = []
+		for ts in tests_list:
+			tsuites.append(\
+					unittest.defaultTestLoader.loadTestsFromTestCase(ts)\
+					)
+		suite = unittest.TestSuite(tsuites)
+		unittest.TextTestRunner().run(suite)
+
+
+	def rand_db_name():
+		"""
+		Generate a random test_db name.
+		"""
+		rand_part = \
+				''.join(random.choice(string.ascii_lowercase) for _ in \
+				range(RAND_PART_LENGTH))
+
+		return 'test_db_' + rand_part
+
+	###########################################################################
+
+
+	class TestRemoteDB(unittest.TestCase):
+		def test_basic_db_function(self):
+			# Get a random db name:
+			db_name = rand_db_name()
+			frame_endpoint = TCPFrameClient(remote)
+			dbe = DBEndpoint(frame_endpoint,db_name)
+			try:
+				c = lite.connect('/home/younes/Bureau/deko.db')
+				cur = c.cursor()
+				cur.execute("SELECT * FROM disas")
+				dataa = cur.fetchall()
+				i=0
+				for d in dataa :
+					# print type(str(d[3]))
+					dbe.add_function(str(d[0]),str(d[1]),str(d[3]))
+					# dbe.add_function(d[0],d[1],d[3])
+					dbe.request_similars(str(d[3]),2)
+					# Check if the amount of returned functions is reasonable:
+					similars = dbe.response_similars()
+					print d[0]
+					print similars
+					i+=1
+				c.commit()
+			except lite.Error, e:
+				if c:
+					c.rollback()
+					print "Error %s:" % e.args[0]
+					sys.exit(1)
+			finally:
+				if c:
+					cur.close()
+					c.close()
+			dbe.close()
+
+
+	tests_list = [TestRemoteDB]
+
+	############################################################################
+
+	if __name__ == '__main__':
+		address = argIp.addressIp
+		port = int(argPort.port)
+
+		# Set address of remote server:
+		remote = (address,port)
+
+		live_test_client()
