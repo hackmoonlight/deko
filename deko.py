@@ -1,5 +1,6 @@
 import r2pipe
 import sys
+import json
 import sqlite3 as lite
 from pdb import pm
 import argparse
@@ -25,8 +26,7 @@ parser.add_argument('-a', '--address',help='ADDRESS OF SPECIFIC FUNCTION ')
 parser.add_argument('-e', '--emulation',help='EMULATE THE SHELLCODE OF THE FUNCTION')
 parser.add_argument('-o', '--emulationAtAddress',type= any ,help='CHOSE THE ADDRESS WHERE YOU WANT TO EMULATE ')
 parser.add_argument('-se', '--symbexec',help='SYMBOLICALLY EXECUTE THE SHELLCODE OF THE FUNCTION')
-parser.add_argument('-ip', '--addressIp',help='ip of the server ')
-parser.add_argument('-p', '--port',help='port of the server ')
+parser.add_argument('-sim', '--similarity',help='ip of the server ')
 argdAction = parser.parse_args()
 argDump=parser.parse_args()
 argSize=parser.parse_args()
@@ -35,8 +35,7 @@ argEmu=parser.parse_args()
 argOffset=parser.parse_args()
 argSymb=parser.parse_args()
 argFile=parser.parse_args()
-argPort=parser.parse_args()
-argIp=parser.parse_args()
+argSimilarity=parser.parse_args()
 if argFile.binaryfile:
 	print str(argFile.binaryfile)
  	r2 = r2pipe.open(str(argFile.binaryfile))
@@ -186,7 +185,7 @@ if argSymb.symbexec:
 		if c:
 			cur.close()
 			c.close()
-if argIp.addressIp and argPort.port :
+if argFile.binaryfile and argSimilarity.similarity == "sim" :
 	# Length of random part of db name:
 	RAND_PART_LENGTH = 20
 
@@ -196,18 +195,13 @@ if argIp.addressIp and argPort.port :
 	# Address of remote server:
 	remote = None
 
-	def live_test_client():
-		"""
-		Test the client against a remote server of address:port remote.
-		"""
-		# See
-		# http://stackoverflow.com/questions/19087189/python-unittest-testcase-object-has-no-attribute-runtest
-		# For more info.
+	def calculate_similarity():
+
 
 		# suite = unittest.TestSuite()
 		# Instantiate all tests and insert then into suite:
 		tsuites = []
-		for ts in tests_list:
+		for ts in functions_list:
 			tsuites.append(\
 					unittest.defaultTestLoader.loadTestsFromTestCase(ts)\
 					)
@@ -215,9 +209,9 @@ if argIp.addressIp and argPort.port :
 		unittest.TextTestRunner().run(suite)
 
 
-	def rand_db_name():
+	def generat_name():
 		"""
-		Generate a random test_db name.
+		Generate a random db name.
 		"""
 		rand_part = \
 				''.join(random.choice(string.ascii_lowercase) for _ in \
@@ -228,23 +222,23 @@ if argIp.addressIp and argPort.port :
 	###########################################################################
 
 
-	class TestRemoteDB(unittest.TestCase):
+	class Deko_db_test(unittest.TestCase):
 		def test_basic_db_function(self):
 			# Get a random db name:
-			db_name = rand_db_name()
+			db_name = generat_name()
 			frame_endpoint = TCPFrameClient(remote)
 			dbe = DBEndpoint(frame_endpoint,db_name)
 			try:
-				c = lite.connect('/home/younes/Bureau/deko.db')
+				c = lite.connect('deko.db')
 				cur = c.cursor()
 				cur.execute("SELECT * FROM disas")
 				dataa = cur.fetchall()
 				i=0
 				for d in dataa :
 					# print type(str(d[3]))
-					dbe.add_function(str(d[0]),str(d[1]),str(d[3]))
+					# dbe.add_function(str(d[0]),str(d[1]),str(d[3]))
 					# dbe.add_function(d[0],d[1],d[3])
-					dbe.request_similars(str(d[3]),2)
+					dbe.request_similars(str(d[3]),3)
 					# Check if the amount of returned functions is reasonable:
 					similars = dbe.response_similars()
 					print d[0]
@@ -263,15 +257,15 @@ if argIp.addressIp and argPort.port :
 			dbe.close()
 
 
-	tests_list = [TestRemoteDB]
+	functions_list = [Deko_db_test]
 
 	############################################################################
 
 	if __name__ == '__main__':
-		address = argIp.addressIp
-		port = int(argPort.port)
+		address = "127.0.0.1"
+		port = int(1337)
 
 		# Set address of remote server:
 		remote = (address,port)
 
-		live_test_client()
+		calculate_similarity()
