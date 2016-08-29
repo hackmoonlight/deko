@@ -236,13 +236,15 @@ if argFile.binaryfile and argSimilarity.similarity == "sim" :
 				i=0
 				for d in dataa :
 					# print type(str(d[3]))
-					# dbe.add_function(str(d[0]),str(d[1]),str(d[3]))
+					dbe.add_function(str(d[0]),str(d[1]),str(d[3]))
 					# dbe.add_function(d[0],d[1],d[3])
-					dbe.request_similars(str(d[3]),3)
+					dbe.request_similars(str(d[3]),2)
 					# Check if the amount of returned functions is reasonable:
 					similars = dbe.response_similars()
-					print d[0]
+					print("+" + (150 * "-"))
+					print ("|%s:"%d[0])
 					print similars
+					print("+" + (150 * "-"))
 					i+=1
 				c.commit()
 			except lite.Error, e:
